@@ -1,0 +1,145 @@
+/***************
+ * OPL 12.5 Model
+ * Author: ChankyaComputer
+ * Creation Date: Nov 26, 2018 at 10:14:42 AM
+ ***************/
+{string} location_2ndCust = ...;
+{string} scenario = ...;
+{string} location_man = ...;
+{string} location_Reprocess = ...;
+{string} location_Recycle = ...;
+{string} location_DisCol = ...;
+{string} location_Waste_gen = ...;
+{string} location_disp = ...;
+{string} location_alpf = ...;
+{string} location_all = ...;
+
+
+
+float pri_second_cust[location_2ndCust][scenario]=...;
+float pri_manufac[location_man][scenario]=...;
+float col_dis_cost[location_DisCol][scenario] = ...;
+float pur_cost[location_DisCol][scenario]=...;
+float disposal_cost[location_disp][scenario]=...;
+float batch=5;
+float lambda = 1;
+float Reprocess_ratio = 0.8;
+float Recycle_ratio = 0.8;
+float prob[scenario]=...;
+float reprocess_cost[location_Reprocess][scenario] = ...;
+float recycling_cost[location_Recycle][scenario] = ...;
+float man_short_cost[location_man][scenario] = ...;
+float second_cus_short_cost[location_2ndCust][scenario] = ...;
+float demand_2nd_cust[location_2ndCust][scenario] = ...;
+float demand_manfacture[location_man][scenario] = ...;
+float cust_inv_cost[location_2ndCust][scenario] = ...;
+float man_inv_cost[location_man][scenario] = ...;
+float loc_all_cap[location_alpf][scenario]=...;
+float facility_cost[location_alpf] =...;
+float loc_binary[location_alpf]=...;
+float re_manu_cost[location_man][scenario]=...;
+
+
+
+
+
+dvar int L[location_all] in 0..1;
+dvar float QFK[location_Reprocess][location_2ndCust][scenario];
+dvar float QLM[location_Recycle][location_man][scenario];
+dvar float QCA[location_Waste_gen][location_DisCol][scenario];
+dvar float QAP[location_DisCol][location_disp][scenario];
+dvar float QAF[location_DisCol][location_Reprocess][scenario];
+dvar float QAL[location_DisCol][location_Recycle][scenario];
+dvar float QCD[location_Waste_gen][location_alpf][scenario]; 
+dvar float QAD[location_DisCol][location_alpf][scenario];
+dvar float QMD[location_man][location_alpf][scenario];
+
+
+maximize
+//Equation 4.1 starts
+sum(f in location_Reprocess, k in location_2ndCust, s in scenario)QFK[f][k][s]*batch*pri_second_cust[k][s]*prob[s]
+//Equation 4.1 ends
++
+//Equation 4.2 starts
+sum(l in location_Recycle, m in location_man, s in scenario)QLM[l][m][s]*batch*pri_manufac[m][s]*prob[s]
+//Equation 4.2 ends
+-
+//equation 4.3 starts
+//Equation 4.4 starts
+(1+lambda)*sum(l in location_alpf)facility_cost[l] * loc_binary[l]
+//Equation 4.4 ends
+-
+//Equation 4.5 starts
+sum(c in location_Waste_gen, a in location_DisCol, s in scenario)QCA[c][a][s]*batch*col_dis_cost[a][s]*prob[s]
+//Equation 4.5 ends
+-
+//Equation 4.6 starts
+sum(c in location_Waste_gen, a in location_DisCol, s in scenario)QCA[c][a][s]*batch*pur_cost[a][s]*prob[s]
+//Equation 4.6 ends
+-
+//Equation 4.7 starts 
+sum(a in location_DisCol, p in location_disp, s in scenario)QAP[a][p][s]*batch*disposal_cost[p][s]*prob[s]
+//Equation 4.7 ends
+-
+//Equation 4.8 starts 
+sum(a in location_DisCol, f in location_Reprocess, s in scenario)Reprocess_ratio*QAF[a][f][s]*batch*reprocess_cost[f][s]*prob[s]
+//Equation 4.8 ends
+-
+//Equation 4.9 starts 
+sum(a in location_DisCol, l in location_Recycle, s in scenario)Recycle_ratio*QAL[a][l][s]*batch*recycling_cost[l][s]*prob[s]
+//Equation 4.9 ends
+-
+//Equation 4.10 starts 
+
+45
+
+//Equation 4.10 ends
+-
+//Equation 4.11 starts 
+sum(m in location_man,s in scenario) (man_short_cost[m][s]*maxl(0,(demand_manfacture[m][s] - (
+sum(l in location_Recycle, s in scenario)QLM[l][m][s]*batch*prob[s]
+))))
+//Equation 4.11 ends
+-
+-
+//Equation 4.12 starts 
+sum(k in location_2ndCust,s in scenario) (second_cus_short_cost[k][s]*maxl(0,(demand_2nd_cust[k][s] - (
+sum(f in location_Reprocess, s in scenario)QFK[f][k][s]*batch*prob[s]
+))))
+//Equation 4.12 ends
+-
+//Equation 4.13 starts
+
+sum(k in location_2ndCust,s in scenario) (cust_inv_cost[k][s]*maxl(0,( (
+sum(f in location_Reprocess, s in scenario)QFK[f][k][s]*batch*prob[s]
+)- demand_2nd_cust[k][s])))
+//Equation 4.13 ends
+-
+//Equation 4.14 starts
+sum(m in location_man,s in scenario) (man_inv_cost[m][s]*maxl(0,( (
+sum(l in location_Recycle, s in scenario)QLM[l][m][s]*batch*prob[s]
+)- demand_manfacture[m][s])));
+//Equation 4.14 ends
+//equation 4.3 ends
+
+subject to{
+//Equation 4.15 starts
+forall (s in scenario,a in location_DisCol) 
+sum(c in location_Waste_gen)QCA[c][a][s]== (sum(f in location_Reprocess)QAF[a][f][s] + sum (l in location_Recycle) QAL[a][l][s] 
++ sum (p in location_disp) QAP[a][p][s]);
+//Equation 4.15 ends
+//Equation 4.16 starts
+forall (s in scenario,l in location_Recycle) sum (a in location_DisCol) QAL[a][l][s] ==
+  sum (m in location_man) QLM[l][m][s];
+//Equation 4.16 ends
+//Equation 4.17 starts
+forall (s in scenario,f in location_Reprocess) sum (a in location_DisCol) QAF[a][f][s] ==
+  sum (k in location_2ndCust) QFK[f][k][s];
+//Equation 4.17 ends
+
+//Equation 4.18 starts
+forall (s in scenario,d in location_alpf) sum (c in location_Waste_gen) QCD [c][d][s]*batch <= loc_all_cap[d][s]*loc_binary[d];
+forall (s in scenario,d in location_alpf) sum (a in location_DisCol) QAD [a][d][s]*batch <= loc_all_cap[d][s]*loc_binary[d];
+forall (s in scenario,d in location_alpf) sum (m in location_man) QMD [m][d][s]*batch <= loc_all_cap[d][s]*loc_binary[d]; 
+//Equation 4.18 ends
+}
